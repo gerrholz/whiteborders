@@ -1,10 +1,17 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct EditorView: View {
+    @Environment(\.openURL) private var openURL
+    @State private var store = EditorStore()
     @State private var borderPercentage = 7.0
     @State private var showsCameraDetails = true
     @State private var selectedPhoto = 0
     @State private var borderColor = Color.white
+    @State private var selectedPickerItems: [PhotosPickerItem] = []
+    @State private var isPhotoPickerPresented = false
+    @State private var isAccessDeniedAlertPresented = false
 
     private let borderColors: [Color] = [.white, .warmGray, .charcoal, .clay, .sage]
 
@@ -36,6 +43,20 @@ struct EditorView: View {
             }
         }
         .tint(.clay)
+        .photosPicker(
+            isPresented: $isPhotoPickerPresented,
+            selection: $selectedPickerItems,
+            matching: .images
+        )
+        .alert("Photo Access Needed", isPresented: $isAccessDeniedAlertPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Open Settings") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                openURL(url)
+            }
+        } message: {
+            Text("Allow Whiteborders to read photos in Settings so you can choose images to frame.")
+        }
     }
 
     private var header: some View {
@@ -119,8 +140,16 @@ struct EditorView: View {
                 .accessibilityLabel("Select photo \(index + 1)")
             }
 
-            Button {} label: {
-                Image(systemName: "plus")
+            Button {
+                Task { await requestPhotoAccess() }
+            } label: {
+                Group {
+                    if store.isRequestingAuthorization {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "plus")
+                    }
+                }
                     .frame(width: 54, height: 54)
                     .background(Color.panelBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 9))
@@ -131,6 +160,7 @@ struct EditorView: View {
                     }
             }
             .accessibilityLabel("Add photos")
+            .disabled(store.isRequestingAuthorization)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -194,6 +224,16 @@ struct EditorView: View {
         .background(Color.panelBackground)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
+
+    private func requestPhotoAccess() async {
+        await store.requestPhotoAccess()
+
+        if store.canReadPhotos {
+            isPhotoPickerPresented = true
+        } else if store.accessWasDenied {
+            isAccessDeniedAlertPresented = true
+        }
+    }
 }
 
 private extension Color {
@@ -210,4 +250,3 @@ private extension Color {
 #Preview {
     EditorView()
 }
-
