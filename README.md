@@ -24,5 +24,16 @@ xcodebuild \
   build
 ```
 
-The current implementation is the native visual prototype. Photo import, rendering, metadata extraction, export, and persistence remain intentionally unwired.
+Run the unit tests with **Product → Test** (`⌘U`) in Xcode, or from the command line:
 
+```sh
+xcodebuild \
+  -project Whiteborders.xcodeproj \
+  -scheme Whiteborders \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' \
+  -derivedDataPath /tmp/WhitebordersDerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  test
+```
+
+The current implementation includes the native visual prototype, validated editing models, serializable editing commands, and bounded undo/redo. Photo import, rendering, metadata extraction, export, and persistence remain intentionally unwired.

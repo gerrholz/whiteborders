@@ -21,9 +21,10 @@ Photos and share-sheet delivery
 ```
 
 - Presentation owns controls, accessibility, navigation, and transient gesture state.
-- The editing model is made from `Codable`, `Equatable`, and `Sendable` value types. It contains identifiers and dimensions, never `UIImage`, `CGImage`, Photos framework objects, or encoded bytes.
+- The editing model lives in `Whiteborders/Models` and is made from `Codable`, `Equatable`, and `Sendable` value types. It contains a photo identifier and dimensions, never `UIImage`, `CGImage`, Photos framework objects, or encoded bytes.
 - Commands are serializable values reduced into new document snapshots.
 - History is bounded and remains in memory for the temporary editing session.
+- SwiftUI screens and screen-specific components live under `Whiteborders/Features`; the application entry point lives under `Whiteborders/App`.
 - PhotoKit authorization and resources enter through adapters rather than the document.
 - Rendering will use one deterministic geometry implementation for preview and export.
 
@@ -38,4 +39,3 @@ The normal workflow performs no network request. Export reconstructs output pixe
 ## Revisit conditions
 
 Add abstractions only when required by an implemented behavior. In particular, do not introduce manual placement state, background workers, persistence, or third-party packages before their milestone establishes a concrete need.
-

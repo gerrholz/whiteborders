@@ -7,9 +7,9 @@ Each milestone introduces one primary concept, includes focused tests where beha
 | ID  | Milestone                              | Status    | Depends on |
 | --- | -------------------------------------- | --------- | ---------- |
 | N01 | Native SwiftUI visual prototype        | Complete  | —          |
-| N02 | XCTest and fixture foundation          | In review | N01        |
-| N03 | Canonical editing document             | Planned   | N02        |
-| N04 | Commands, scopes, and undo/redo        | Planned   | N03        |
+| N02 | XCTest and fixture foundation          | Complete  | N01        |
+| N03 | Canonical editing document             | Complete  | N02        |
+| N04 | Commands, scopes, and undo/redo        | In review | N03        |
 | N05 | Deterministic centered-contain layout  | Planned   | N03        |
 | N06 | PhotoKit import and resource lifecycle | Planned   | N02        |
 | N07 | Core Graphics preview renderer         | Planned   | N05, N06   |
