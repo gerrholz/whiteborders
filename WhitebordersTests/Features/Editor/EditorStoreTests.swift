@@ -51,6 +51,44 @@ final class EditorStoreTests: XCTestCase {
         XCTAssertTrue(restricted.accessWasDenied)
         XCTAssertFalse(restricted.canReadPhotos)
     }
+
+    func testImportConnectsResourceAndDocumentWithSamePhotoID() async throws {
+        let resource = PhotoResource(
+            id: PhotoID(rawValue: "imported-photo"),
+            fileURL: URL(filePath: "/tmp/imported-photo.jpg"),
+            dimensions: try PixelDimensions(width: 4_032, height: 3_024)
+        )
+        let store = EditorStore(
+            authorization: FakePhotoLibraryAuthorization(
+                current: .authorized,
+                requested: .authorized
+            ),
+            importer: FakePhotoImporter(result: .success(resource))
+        )
+
+        await store.importPhotos([PhotoImportInput(data: Data([1]))])
+
+        XCTAssertEqual(store.document.photos.map(\.id), [resource.id])
+        XCTAssertEqual(store.resources[resource.id], resource)
+        XCTAssertEqual(store.selectedPhotoID, resource.id)
+        XCTAssertEqual(store.document.selectedPhotoIDs, [resource.id])
+    }
+
+    func testImportFailureIsExposedWithoutAddingPhoto() async {
+        let store = EditorStore(
+            authorization: FakePhotoLibraryAuthorization(
+                current: .authorized,
+                requested: .authorized
+            ),
+            importer: FakePhotoImporter(result: .failure(PhotoImportError.invalidImage))
+        )
+
+        await store.importPhotos([PhotoImportInput(data: Data([1]))])
+
+        XCTAssertTrue(store.document.photos.isEmpty)
+        XCTAssertNotNil(store.importErrorMessage)
+        XCTAssertFalse(store.isImportingPhotos)
+    }
 }
 
 private nonisolated struct FakePhotoLibraryAuthorization: PhotoLibraryAuthorizing {
@@ -59,4 +97,12 @@ private nonisolated struct FakePhotoLibraryAuthorization: PhotoLibraryAuthorizin
 
     func currentStatus() -> PHAuthorizationStatus { current }
     func requestAccess() async -> PHAuthorizationStatus { requested }
+}
+
+private nonisolated struct FakePhotoImporter: PhotoImporting {
+    let result: Result<PhotoResource, Error>
+
+    func importPhoto(_ input: PhotoImportInput) async throws -> PhotoResource {
+        try result.get()
+    }
 }

@@ -10,19 +10,17 @@ nonisolated enum EditingDocumentError: Error, Equatable {
 }
 
 nonisolated struct EditingDocument: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     let schemaVersion: Int
     let id: DocumentID
 
-    var canvas: Canvas
     var photos: [Photo]
     var selectedPhotoIDs: Set<PhotoID>
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,
         id: DocumentID = DocumentID(),
-        canvas: Canvas = .default,
         photos: [Photo],
         selectedPhotoIDs: Set<PhotoID> = []
     ) throws {
@@ -36,13 +34,12 @@ nonisolated struct EditingDocument: Codable, Equatable, Sendable {
 
         self.schemaVersion = schemaVersion
         self.id = id
-        self.canvas = canvas
         self.photos = photos
         self.selectedPhotoIDs = selectedPhotoIDs
     }
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, id, canvas, photos, selectedPhotoIDs
+        case schemaVersion, id, photos, selectedPhotoIDs
     }
 
     init(from decoder: Decoder) throws {
@@ -50,7 +47,6 @@ nonisolated struct EditingDocument: Codable, Equatable, Sendable {
         try self.init(
             schemaVersion: values.decode(Int.self, forKey: .schemaVersion),
             id: values.decode(DocumentID.self, forKey: .id),
-            canvas: values.decode(Canvas.self, forKey: .canvas),
             photos: values.decode([Photo].self, forKey: .photos),
             selectedPhotoIDs: values.decode(Set<PhotoID>.self, forKey: .selectedPhotoIDs)
         )
@@ -69,29 +65,6 @@ nonisolated struct PhotoID: RawRepresentable, Codable, Hashable, Sendable {
 
     init(rawValue: String) { self.rawValue = rawValue }
     init() { rawValue = UUID().uuidString }
-}
-
-nonisolated struct Canvas: Codable, Equatable, Sendable {
-    static let `default` = try! Canvas(width: 1_080, height: 1_080)
-
-    let width: Int
-    let height: Int
-
-    init(width: Int, height: Int) throws {
-        guard width > 0, height > 0 else {
-            throw EditingDocumentError.invalidDimensions
-        }
-        self.width = width
-        self.height = height
-    }
-
-    init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        try self.init(
-            width: values.decode(Int.self, forKey: .width),
-            height: values.decode(Int.self, forKey: .height)
-        )
-    }
 }
 
 nonisolated struct Photo: Codable, Equatable, Identifiable, Sendable {

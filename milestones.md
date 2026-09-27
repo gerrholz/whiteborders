@@ -11,7 +11,7 @@ Each milestone introduces one primary concept, includes focused tests where beha
 | N03 | Canonical editing document             | Complete  | N02        |
 | N04 | Commands, scopes, and undo/redo        | Complete  | N03        |
 | N05 | Deterministic centered-contain layout  | Complete  | N03        |
-| N06 | PhotoKit import and resource lifecycle | In progress | N02      |
+| N06 | PhotoKit import and resource lifecycle | Complete  | N02        |
 | N07 | Core Graphics preview renderer         | Planned   | N05, N06   |
 | N08 | Metadata extraction and overlay        | Planned   | N06, N07   |
 | N09 | JPEG/PNG export and Photos delivery    | Planned   | N07, N08   |

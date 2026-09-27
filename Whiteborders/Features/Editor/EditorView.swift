@@ -7,7 +7,6 @@ struct EditorView: View {
     @State private var store = EditorStore()
     @State private var borderPercentage = 7.0
     @State private var showsCameraDetails = true
-    @State private var selectedPhoto = 0
     @State private var borderColor = Color.white
     @State private var selectedPickerItems: [PhotosPickerItem] = []
     @State private var isPhotoPickerPresented = false
@@ -39,6 +38,7 @@ struct EditorView: View {
                     Button("Save", systemImage: "square.and.arrow.down") {}
                         .buttonStyle(.borderedProminent)
                         .tint(.charcoal)
+                        .disabled(store.selectedResource == nil)
                 }
             }
         }
@@ -48,6 +48,10 @@ struct EditorView: View {
             selection: $selectedPickerItems,
             matching: .images
         )
+        .onChange(of: selectedPickerItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task { await importPhotos(from: items) }
+        }
         .alert("Photo Access Needed", isPresented: $isAccessDeniedAlertPresented) {
             Button("Cancel", role: .cancel) {}
             Button("Open Settings") {
@@ -56,6 +60,11 @@ struct EditorView: View {
             }
         } message: {
             Text("Allow Whiteborders to read photos in Settings so you can choose images to frame.")
+        }
+        .alert("Couldn’t Import Photo", isPresented: importErrorBinding) {
+            Button("OK", role: .cancel) { store.clearImportError() }
+        } message: {
+            Text(store.importErrorMessage ?? "The selected photo could not be imported.")
         }
     }
 
@@ -66,7 +75,7 @@ struct EditorView: View {
                     .font(.caption2.weight(.bold))
                     .tracking(1.2)
                     .foregroundStyle(Color.secondaryText)
-                Text("Iceland coast")
+                Text(store.selectedResource == nil ? "No photo selected" : "Imported photo")
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Color.primaryText)
             }
@@ -86,13 +95,9 @@ struct EditorView: View {
             ZStack {
                 borderColor
                 VStack(spacing: 12) {
-                    Image("SampleCoast")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .accessibilityLabel("A person walking on a windswept coast")
+                    previewImage
 
-                    if showsCameraDetails {
+                    if showsCameraDetails, store.selectedResource != nil {
                         cameraDetails
                     }
                 }
@@ -120,49 +125,60 @@ struct EditorView: View {
 
     private var photoStrip: some View {
         HStack(spacing: 10) {
-            ForEach(0..<3, id: \.self) { index in
-                Button {
-                    selectedPhoto = index
-                } label: {
-                    Image("SampleCoast")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 58, height: 58)
-                        .clipShape(RoundedRectangle(cornerRadius: 9))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 9)
-                                .stroke(
-                                    selectedPhoto == index ? Color.clay : .clear,
-                                    lineWidth: 3
-                                )
+            if !store.orderedResources.isEmpty {
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(store.orderedResources) { resource in
+                            Button {
+                                store.selectPhoto(resource.id)
+                            } label: {
+                                if let image = UIImage(contentsOfFile: resource.fileURL.path) {
+                                    thumbnail(
+                                        Image(uiImage: image),
+                                        isSelected: store.selectedPhotoID == resource.id
+                                    )
+                                }
+                            }
+                            .accessibilityLabel("Select imported photo")
                         }
+                    }
                 }
-                .accessibilityLabel("Select photo \(index + 1)")
+                .scrollIndicators(.hidden)
+                .frame(maxWidth: .infinity)
             }
 
-            Button {
-                Task { await requestPhotoAccess() }
-            } label: {
-                Group {
-                    if store.isRequestingAuthorization {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "plus")
-                    }
-                }
-                    .frame(width: 54, height: 54)
-                    .background(Color.panelBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 9))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 9)
-                            .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
-                            .foregroundStyle(Color.secondaryText)
-                    }
+            addPhotoButton
+
+            if store.orderedResources.isEmpty {
+                Spacer()
             }
-            .accessibilityLabel("Add photos")
-            .disabled(store.isRequestingAuthorization)
         }
+        .frame(height: 58)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var addPhotoButton: some View {
+        Button {
+            Task { await requestPhotoAccess() }
+        } label: {
+            Group {
+                if store.isRequestingAuthorization || store.isImportingPhotos {
+                    ProgressView()
+                } else {
+                    Image(systemName: "plus")
+                }
+            }
+                .frame(width: 54, height: 54)
+                .background(Color.panelBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 9))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9)
+                        .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4]))
+                        .foregroundStyle(Color.secondaryText)
+                }
+        }
+        .accessibilityLabel("Add photos")
+        .disabled(store.isRequestingAuthorization || store.isImportingPhotos)
     }
 
     private var controls: some View {
@@ -223,6 +239,7 @@ struct EditorView: View {
         .padding(18)
         .background(Color.panelBackground)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .disabled(store.selectedResource == nil)
     }
 
     private func requestPhotoAccess() async {
@@ -233,6 +250,80 @@ struct EditorView: View {
         } else if store.accessWasDenied {
             isAccessDeniedAlertPresented = true
         }
+    }
+
+    @ViewBuilder
+    private var previewImage: some View {
+        if let resource = store.selectedResource,
+           let image = UIImage(contentsOfFile: resource.fileURL.path) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel("Selected imported photo")
+        } else {
+            VStack(spacing: 12) {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.system(size: 34, weight: .light))
+                Text("No images imported yet")
+                    .font(.headline)
+                Text("Tap the plus button below to choose photos.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.secondaryText)
+            }
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Color.primaryText)
+                .padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func thumbnail(_ image: Image, isSelected: Bool) -> some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .frame(width: 58, height: 58)
+            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .overlay {
+                RoundedRectangle(cornerRadius: 9)
+                    .stroke(isSelected ? Color.clay : .clear, lineWidth: 3)
+            }
+    }
+
+    private var importErrorBinding: Binding<Bool> {
+        Binding(
+            get: { store.importErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented { store.clearImportError() }
+            }
+        )
+    }
+
+    private func importPhotos(from items: [PhotosPickerItem]) async {
+        var inputs: [PhotoImportInput] = []
+        var pickerLoadFailed = false
+
+        for item in items {
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    pickerLoadFailed = true
+                    continue
+                }
+                inputs.append(
+                    PhotoImportInput(
+                        data: data,
+                        preferredFileExtension: item.supportedContentTypes.first?.preferredFilenameExtension
+                    )
+                )
+            } catch {
+                pickerLoadFailed = true
+            }
+        }
+
+        await store.importPhotos(inputs)
+        if pickerLoadFailed { store.reportImportFailure() }
+        selectedPickerItems.removeAll()
     }
 }
 

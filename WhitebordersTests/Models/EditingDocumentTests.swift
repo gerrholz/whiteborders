@@ -2,13 +2,19 @@ import XCTest
 @testable import Whiteborders
 
 final class EditingDocumentTests: XCTestCase {
-    func testDefaultsDescribeSquareWhiteBorderComposition() throws {
+    func testDefaultsDescribeWhiteBorderComposition() throws {
         let document = try makeDocument()
 
-        XCTAssertEqual(document.schemaVersion, 1)
-        XCTAssertEqual(document.canvas, try Canvas(width: 1_080, height: 1_080))
+        XCTAssertEqual(document.schemaVersion, 2)
         XCTAssertEqual(document.photos[0].border, try Border(fraction: 0.07, color: .white))
         XCTAssertEqual(document.photos[0].photoCornerRadius, 0.07)
+    }
+
+    func testEncodedDocumentDoesNotStoreDerivedCanvasDimensions() throws {
+        let data = try JSONEncoder().encode(makeDocument())
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertNil(json["canvas"])
     }
 
     func testRejectsInvalidValues() throws {

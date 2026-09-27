@@ -1,34 +1,25 @@
 import CoreGraphics
 
 nonisolated struct PhotoLayout: Equatable, Sendable {
+    let canvasSize: CGSize
     let photoFrame: CGRect
-    
+
     static func centered(
         source: PixelDimensions,
-        canvas: Canvas,
         borderFraction: Double
     ) -> PhotoLayout {
-        let canvasWidth = CGFloat(canvas.width)
-        let canvasHeight = CGFloat(canvas.height)
         let sourceWidth = CGFloat(source.width)
         let sourceHeight = CGFloat(source.height)
-        let horizontalInset = canvasWidth * borderFraction
-        let verticalInset = canvasHeight * borderFraction
-        let availableWidth = canvasWidth - (horizontalInset * 2)
-        let availableHeight = canvasHeight - (verticalInset * 2)
+        let longestEdge = max(sourceWidth, sourceHeight)
+        let canvasSide = ceil(longestEdge / (1 - (2 * borderFraction)))
+        let canvasSize = CGSize(width: canvasSide, height: canvasSide)
+        let photoFrame = CGRect(
+            x: (canvasSide - sourceWidth) / 2,
+            y: (canvasSide - sourceHeight) / 2,
+            width: sourceWidth,
+            height: sourceHeight
+        )
 
-        let horizontalScale = availableWidth / sourceWidth
-        let verticalScale = availableHeight / sourceHeight
-        let scale = min(horizontalScale, verticalScale)
-        
-        let photoWidth = sourceWidth * scale
-        let photoHeight = sourceHeight * scale
-        
-        let x = (canvasWidth - photoWidth) / 2
-        let y = (canvasHeight - photoHeight) / 2
-        
-        let rect = CGRect(x: x, y: y, width: photoWidth, height: photoHeight)
-        
-        return PhotoLayout(photoFrame: rect)
+        return PhotoLayout(canvasSize: canvasSize, photoFrame: photoFrame)
     }
 }
