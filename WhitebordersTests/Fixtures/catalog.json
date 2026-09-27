@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "file": "Images/generated-landscape.png",
+      "format": "png",
+      "width": 4,
+      "height": 3
+    },
+    {
+      "file": "Images/generated-portrait.png",
+      "format": "png",
+      "width": 3,
+      "height": 4
+    },
+    {
+      "file": "Images/generated-landscape.jpg",
+      "format": "jpeg",
+      "width": 4,
+      "height": 3
+    }
+  ]
+}
+

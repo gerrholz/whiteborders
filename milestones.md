@@ -6,8 +6,8 @@ Each milestone introduces one primary concept, includes focused tests where beha
 
 | ID  | Milestone                              | Status    | Depends on |
 | --- | -------------------------------------- | --------- | ---------- |
-| N01 | Native SwiftUI visual prototype        | In review | —          |
-| N02 | XCTest and fixture foundation          | Planned   | N01        |
+| N01 | Native SwiftUI visual prototype        | Complete  | —          |
+| N02 | XCTest and fixture foundation          | In review | N01        |
 | N03 | Canonical editing document             | Planned   | N02        |
 | N04 | Commands, scopes, and undo/redo        | Planned   | N03        |
 | N05 | Deterministic centered-contain layout  | Planned   | N03        |
@@ -71,4 +71,3 @@ Each milestone introduces one primary concept, includes focused tests where beha
 ## N11 — App Store archive and release
 
 **Outcome:** A signed archive passes validation and is ready for TestFlight/App Store distribution.
-
