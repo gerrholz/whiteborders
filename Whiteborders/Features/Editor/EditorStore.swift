@@ -2,12 +2,19 @@ import Observation
 import Photos
 import CoreGraphics
 
+nonisolated enum ExportNotice: Equatable {
+    case saved(count: Int)
+    case failed(String)
+}
+
 @MainActor
 @Observable
 final class EditorStore {
     private let authorization: any PhotoLibraryAuthorizing
     private let importer: any PhotoImporting
     private let renderer: any PhotoRendering
+    private let exporter: any PhotoExporting
+    private let librarySaver: any PhotoLibrarySaving
     private var history: EditingHistory
 
     private(set) var authorizationStatus: PHAuthorizationStatus
@@ -17,15 +24,21 @@ final class EditorStore {
     private(set) var selectedPhotoID: PhotoID?
     private(set) var importErrorMessage: String?
     private(set) var renderedPreview: CGImage?
+    private(set) var isExporting = false
+    private(set) var exportNotice: ExportNotice?
 
     init(
         authorization: any PhotoLibraryAuthorizing = PhotoLibraryAuthorization(),
         importer: any PhotoImporting = PhotoImporter(),
-        renderer: any PhotoRendering = PhotoRenderer()
+        renderer: any PhotoRendering = PhotoRenderer(),
+        exporter: any PhotoExporting = PhotoExporter(),
+        librarySaver: any PhotoLibrarySaving = PhotoLibrarySaver()
     ) {
         self.authorization = authorization
         self.importer = importer
         self.renderer = renderer
+        self.exporter = exporter
+        self.librarySaver = librarySaver
         authorizationStatus = authorization.currentStatus()
         history = EditingHistory(document: try! EditingDocument(photos: []))
     }
@@ -136,6 +149,60 @@ final class EditorStore {
     func redo() async {
         guard history.redo() else { return }
         await renderSelectedPhoto()
+    }
+
+    func exportSelectedPhoto() async {
+        guard !isExporting,
+              let photo = selectedPhoto,
+              let resource = selectedResource
+        else { return }
+
+        isExporting = true
+        exportNotice = nil
+        defer { isExporting = false }
+
+        do {
+            try await export(photo: photo, resource: resource)
+            exportNotice = .saved(count: 1)
+        } catch {
+            exportNotice = .failed("The photo could not be saved. Please try again.")
+        }
+    }
+
+    func exportAllPhotos() async {
+        guard !isExporting else { return }
+        let exports = document.photos.compactMap { photo -> (Photo, PhotoResource)? in
+            guard let resource = resources[photo.id] else { return nil }
+            return (photo, resource)
+        }
+        guard !exports.isEmpty else { return }
+
+        isExporting = true
+        exportNotice = nil
+        defer { isExporting = false }
+
+        var savedCount = 0
+        do {
+            for (photo, resource) in exports {
+                try await export(photo: photo, resource: resource)
+                savedCount += 1
+            }
+            exportNotice = .saved(count: savedCount)
+        } catch {
+            exportNotice = .failed(
+                "Saved \(savedCount) of \(exports.count) photos before the export failed."
+            )
+        }
+    }
+
+    func clearExportNotice() {
+        exportNotice = nil
+    }
+
+    private func export(photo: Photo, resource: PhotoResource) async throws {
+        let renderedImage = try await renderer.render(photo: photo, resource: resource)
+        let jpegData = try exporter.jpegData(from: renderedImage, quality: 0.95)
+        try await librarySaver.saveJPEG(jpegData)
     }
 
     func clearImportError() {

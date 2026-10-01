@@ -13,9 +13,9 @@ Each milestone introduces one primary concept, includes focused tests where beha
 | N05 | Deterministic centered-contain layout  | Complete  | N03        |
 | N06 | PhotoKit import and resource lifecycle | Complete  | N02        |
 | N07 | Core Graphics preview renderer         | In review | N05, N06   |
-| N08 | Metadata extraction and overlay        | Planned   | N06, N07   |
-| N09 | JPEG/PNG export and Photos delivery    | Planned   | N07, N08   |
-| N10 | Accessibility and release hardening    | Planned   | N09        |
+| N08 | JPEG export and Photos delivery        | In review | N07        |
+| N09 | Metadata extraction and overlay        | Deferred  | N06, N07   |
+| N10 | Accessibility and release hardening    | Planned   | N08        |
 | N11 | App Store archive and release          | Planned   | N10        |
 
 ## N01 — Native SwiftUI visual prototype
@@ -56,13 +56,13 @@ Each milestone introduces one primary concept, includes focused tests where beha
 
 **Outcome:** The editor displays a production preview using the same geometry rules intended for export.
 
-## N08 — Metadata extraction and overlay
+## N08 — JPEG export and Photos delivery
 
-**Outcome:** Selected camera settings can be rendered visibly without retaining unrelated metadata.
+**Outcome:** The user saves a newly encoded JPEG of the selected composition to Photos without copied source metadata.
 
-## N09 — JPEG/PNG export and Photos delivery
+## N09 — Metadata extraction and overlay
 
-**Outcome:** The user saves a reconstructed image with no copied source metadata.
+**Outcome:** Selected camera settings can be rendered visibly without retaining unrelated metadata. This is deferred until the core import, edit, and export workflow is approved.
 
 ## N10 — Accessibility and release hardening
 

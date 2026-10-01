@@ -27,6 +27,7 @@ Photos and share-sheet delivery
 - SwiftUI screens and screen-specific components live under `Whiteborders/Features`; the application entry point lives under `Whiteborders/App`.
 - PhotoKit authorization and resources enter through adapters rather than the document.
 - Rendering will use one deterministic geometry implementation for preview and export.
+- Export encodes the renderer's reconstructed pixels as a new JPEG and saves that data through PhotoKit, so source metadata is not copied into the delivered image.
 
 ## Current invariant
 

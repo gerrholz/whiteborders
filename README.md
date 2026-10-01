@@ -36,4 +36,4 @@ xcodebuild \
   test
 ```
 
-The current implementation includes the native visual prototype, validated editing models, serializable editing commands, and bounded undo/redo. Photo import, rendering, metadata extraction, export, and persistence remain intentionally unwired.
+The current implementation includes the native editor, validated editing models, serializable commands, bounded undo/redo, PhotoKit import, production rendering, and selected-photo JPEG export to Photos. Metadata overlays and document persistence remain intentionally unwired.

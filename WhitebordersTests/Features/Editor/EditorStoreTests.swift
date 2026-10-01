@@ -117,6 +117,56 @@ final class EditorStoreTests: XCTestCase {
         XCTAssertEqual(store.selectedPhoto?.border.fraction, 0.07)
         XCTAssertTrue(store.canRedo)
     }
+
+    func testExportRendersEncodesAndSavesSelectedPhoto() async throws {
+        let resource = PhotoResource(
+            id: PhotoID(rawValue: "export-photo"),
+            fileURL: URL(filePath: "/tmp/export-photo.jpg"),
+            dimensions: try PixelDimensions(width: 100, height: 80)
+        )
+        let store = EditorStore(
+            authorization: FakePhotoLibraryAuthorization(
+                current: .authorized,
+                requested: .authorized
+            ),
+            importer: FakePhotoImporter(result: .success(resource)),
+            renderer: FakePhotoRenderer(image: makeTestImage()),
+            exporter: FakePhotoExporter(),
+            librarySaver: FakePhotoLibrarySaver(shouldFail: false)
+        )
+        await store.importPhotos([PhotoImportInput(data: Data([1]))])
+
+        await store.exportSelectedPhoto()
+
+        XCTAssertEqual(store.exportNotice, .saved(count: 1))
+        XCTAssertFalse(store.isExporting)
+    }
+
+    func testExportFailureIsExposed() async throws {
+        let resource = PhotoResource(
+            id: PhotoID(rawValue: "failed-export"),
+            fileURL: URL(filePath: "/tmp/failed-export.jpg"),
+            dimensions: try PixelDimensions(width: 100, height: 80)
+        )
+        let store = EditorStore(
+            authorization: FakePhotoLibraryAuthorization(
+                current: .authorized,
+                requested: .authorized
+            ),
+            importer: FakePhotoImporter(result: .success(resource)),
+            renderer: FakePhotoRenderer(image: makeTestImage()),
+            exporter: FakePhotoExporter(),
+            librarySaver: FakePhotoLibrarySaver(shouldFail: true)
+        )
+        await store.importPhotos([PhotoImportInput(data: Data([1]))])
+
+        await store.exportSelectedPhoto()
+
+        guard case .some(.failed) = store.exportNotice else {
+            return XCTFail("Expected an export failure notice")
+        }
+        XCTAssertFalse(store.isExporting)
+    }
 }
 
 private nonisolated struct FakePhotoLibraryAuthorization: PhotoLibraryAuthorizing {
@@ -145,6 +195,28 @@ private actor FakePhotoRenderer: PhotoRendering {
     func render(photo: Photo, resource: PhotoResource) async throws -> CGImage {
         image
     }
+}
+
+private nonisolated struct FakePhotoExporter: PhotoExporting {
+    func jpegData(from image: CGImage, quality: Double) throws -> Data {
+        Data([0xFF, 0xD8, 0xFF, 0xD9])
+    }
+}
+
+private actor FakePhotoLibrarySaver: PhotoLibrarySaving {
+    let shouldFail: Bool
+
+    init(shouldFail: Bool) {
+        self.shouldFail = shouldFail
+    }
+
+    func saveJPEG(_ data: Data) async throws {
+        if shouldFail { throw FakeExportError.saveFailed }
+    }
+}
+
+private nonisolated enum FakeExportError: Error {
+    case saveFailed
 }
 
 private nonisolated func makeTestImage() -> CGImage {

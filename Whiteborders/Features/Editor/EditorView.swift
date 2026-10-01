@@ -54,10 +54,18 @@ struct EditorView: View {
                         .foregroundStyle(Color.primaryText)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save", systemImage: "square.and.arrow.down") {}
-                        .buttonStyle(.borderedProminent)
-                        .tint(.charcoal)
-                        .disabled(store.selectedResource == nil)
+                    Button {
+                        Task { await store.exportSelectedPhoto() }
+                    } label: {
+                        if store.isExporting {
+                            ProgressView()
+                        } else {
+                            Label("Save photo", systemImage: "square.and.arrow.down")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.charcoal)
+                    .disabled(store.selectedResource == nil || store.isExporting)
                 }
             }
         }
@@ -84,6 +92,11 @@ struct EditorView: View {
             Button("OK", role: .cancel) { store.clearImportError() }
         } message: {
             Text(store.importErrorMessage ?? "The selected photo could not be imported.")
+        }
+        .alert(exportAlertTitle, isPresented: exportNoticeBinding) {
+            Button("OK", role: .cancel) { store.clearExportNotice() }
+        } message: {
+            Text(exportAlertMessage)
         }
     }
 
@@ -231,20 +244,22 @@ struct EditorView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Divider()
-
-            Toggle(isOn: metadataVisibilityBinding) {
-                Label("Camera details", systemImage: "camera.aperture")
-                    .font(.headline)
-            }
-
-            Button {} label: {
-                Label("Save photo", systemImage: "square.and.arrow.down")
-                    .frame(maxWidth: .infinity)
+            Button {
+                Task { await store.exportAllPhotos() }
+            } label: {
+                Group {
+                    if store.isExporting {
+                        ProgressView()
+                    } else {
+                        Label("Save all photos", systemImage: "square.and.arrow.down")
+                    }
+                }
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .tint(.charcoal)
+            .disabled(store.isExporting)
         }
         .padding(18)
         .background(Color.panelBackground)
@@ -330,11 +345,31 @@ struct EditorView: View {
         )
     }
 
-    private var metadataVisibilityBinding: Binding<Bool> {
+    private var exportNoticeBinding: Binding<Bool> {
         Binding(
-            get: { store.selectedPhoto?.showsMetadata ?? false },
-            set: { store.setMetadataVisible($0) }
+            get: { store.exportNotice != nil },
+            set: { isPresented in
+                if !isPresented { store.clearExportNotice() }
+            }
         )
+    }
+
+    private var exportAlertTitle: String {
+        if case .some(.saved) = store.exportNotice { return "Photos Saved" }
+        return "Couldn’t Save Photo"
+    }
+
+    private var exportAlertMessage: String {
+        switch store.exportNotice {
+        case let .saved(count):
+            return count == 1
+                ? "The finished photo was added to your Photos library."
+                : "\(count) finished photos were added to your Photos library."
+        case let .failed(message):
+            return message
+        case nil:
+            return ""
+        }
     }
 
     private func importPhotos(from items: [PhotosPickerItem]) async {
