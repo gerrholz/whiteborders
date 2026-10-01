@@ -40,6 +40,15 @@ nonisolated struct EditingHistory: Equatable, Sendable {
         activeCoalescingKey = nil
     }
 
+    mutating func updateSelection(_ photoIDs: Set<PhotoID>) throws {
+        document = try EditingDocument(
+            schemaVersion: document.schemaVersion,
+            id: document.id,
+            photos: document.photos,
+            selectedPhotoIDs: photoIDs
+        )
+    }
+
     @discardableResult
     mutating func undo() -> Bool {
         guard let previous = undoStack.popLast() else { return false }

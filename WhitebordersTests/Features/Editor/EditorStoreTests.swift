@@ -1,3 +1,4 @@
+import CoreGraphics
 import Photos
 import XCTest
 @testable import Whiteborders
@@ -63,7 +64,8 @@ final class EditorStoreTests: XCTestCase {
                 current: .authorized,
                 requested: .authorized
             ),
-            importer: FakePhotoImporter(result: .success(resource))
+            importer: FakePhotoImporter(result: .success(resource)),
+            renderer: FakePhotoRenderer(image: makeTestImage())
         )
 
         await store.importPhotos([PhotoImportInput(data: Data([1]))])
@@ -72,6 +74,7 @@ final class EditorStoreTests: XCTestCase {
         XCTAssertEqual(store.resources[resource.id], resource)
         XCTAssertEqual(store.selectedPhotoID, resource.id)
         XCTAssertEqual(store.document.selectedPhotoIDs, [resource.id])
+        XCTAssertNotNil(store.renderedPreview)
     }
 
     func testImportFailureIsExposedWithoutAddingPhoto() async {
@@ -89,6 +92,31 @@ final class EditorStoreTests: XCTestCase {
         XCTAssertNotNil(store.importErrorMessage)
         XCTAssertFalse(store.isImportingPhotos)
     }
+
+    func testBorderChangesUseHistoryAndCanBeUndone() async throws {
+        let resource = PhotoResource(
+            id: PhotoID(rawValue: "editable-photo"),
+            fileURL: URL(filePath: "/tmp/editable-photo.jpg"),
+            dimensions: try PixelDimensions(width: 100, height: 80)
+        )
+        let store = EditorStore(
+            authorization: FakePhotoLibraryAuthorization(
+                current: .authorized,
+                requested: .authorized
+            ),
+            importer: FakePhotoImporter(result: .success(resource)),
+            renderer: FakePhotoRenderer(image: makeTestImage())
+        )
+        await store.importPhotos([PhotoImportInput(data: Data([1]))])
+
+        await store.setBorderFraction(0.12, isContinuous: false)
+        XCTAssertEqual(store.selectedPhoto?.border.fraction, 0.12)
+        XCTAssertTrue(store.canUndo)
+
+        await store.undo()
+        XCTAssertEqual(store.selectedPhoto?.border.fraction, 0.07)
+        XCTAssertTrue(store.canRedo)
+    }
 }
 
 private nonisolated struct FakePhotoLibraryAuthorization: PhotoLibraryAuthorizing {
@@ -105,4 +133,29 @@ private nonisolated struct FakePhotoImporter: PhotoImporting {
     func importPhoto(_ input: PhotoImportInput) async throws -> PhotoResource {
         try result.get()
     }
+}
+
+private actor FakePhotoRenderer: PhotoRendering {
+    let image: CGImage
+
+    init(image: CGImage) {
+        self.image = image
+    }
+
+    func render(photo: Photo, resource: PhotoResource) async throws -> CGImage {
+        image
+    }
+}
+
+private nonisolated func makeTestImage() -> CGImage {
+    let context = CGContext(
+        data: nil,
+        width: 1,
+        height: 1,
+        bitsPerComponent: 8,
+        bytesPerRow: 4,
+        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    )!
+    return context.makeImage()!
 }

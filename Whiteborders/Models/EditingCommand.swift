@@ -8,8 +8,7 @@ nonisolated enum PhotoScope: Codable, Equatable, Sendable {
 
 nonisolated enum EditingCommand: Codable, Equatable, Sendable {
     case setBorderFraction(Double, scope: PhotoScope)
-    case setBorderColor(HexColor, scope: PhotoScope)
-    case setPhotoCornerRadius(Double, scope: PhotoScope)
+    case setBorderColor(RGBAColor, scope: PhotoScope)
     case setMetadataVisible(Bool, scope: PhotoScope)
 }
 
@@ -38,14 +37,6 @@ nonisolated enum EditingReducer {
                 result.photos[index].border = try Border(
                     fraction: photo.border.fraction,
                     color: color
-                )
-            case let .setPhotoCornerRadius(radius, _):
-                result.photos[index] = try Photo(
-                    id: photo.id,
-                    sourceDimensions: photo.sourceDimensions,
-                    border: photo.border,
-                    photoCornerRadius: radius,
-                    showsMetadata: photo.showsMetadata
                 )
             case let .setMetadataVisible(isVisible, _):
                 result.photos[index].showsMetadata = isVisible
@@ -81,7 +72,6 @@ private extension EditingCommand {
         switch self {
         case let .setBorderFraction(_, scope),
              let .setBorderColor(_, scope),
-             let .setPhotoCornerRadius(_, scope),
              let .setMetadataVisible(_, scope):
             return scope
         }

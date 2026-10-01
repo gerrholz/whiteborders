@@ -5,9 +5,8 @@ final class EditingDocumentTests: XCTestCase {
     func testDefaultsDescribeWhiteBorderComposition() throws {
         let document = try makeDocument()
 
-        XCTAssertEqual(document.schemaVersion, 2)
+        XCTAssertEqual(document.schemaVersion, 3)
         XCTAssertEqual(document.photos[0].border, try Border(fraction: 0.07, color: .white))
-        XCTAssertEqual(document.photos[0].photoCornerRadius, 0.07)
     }
 
     func testEncodedDocumentDoesNotStoreDerivedCanvasDimensions() throws {
@@ -21,7 +20,8 @@ final class EditingDocumentTests: XCTestCase {
         XCTAssertThrowsError(try PixelDimensions(width: 0, height: 100))
         XCTAssertThrowsError(try Border(fraction: .infinity, color: .white))
         XCTAssertThrowsError(try Border(fraction: 0.5, color: .white))
-        XCTAssertNil(HexColor(rawValue: "white"))
+        XCTAssertThrowsError(try RGBAColor(red: 1.1, green: 0, blue: 0))
+        XCTAssertThrowsError(try RGBAColor(red: 0, green: .nan, blue: 0))
     }
 
     func testRejectsSelectionThatIsNotInDocument() throws {

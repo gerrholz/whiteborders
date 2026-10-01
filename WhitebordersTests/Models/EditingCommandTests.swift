@@ -40,7 +40,7 @@ final class EditingCommandTests: XCTestCase {
 
     func testCommandIsSerializable() throws {
         let command = EditingCommand.setBorderColor(
-            HexColor(rawValue: "#ABCDEF")!,
+            try RGBAColor(red: 0.67, green: 0.8, blue: 0.94),
             scope: .allPhotos
         )
         let encoded = try JSONEncoder().encode(command)

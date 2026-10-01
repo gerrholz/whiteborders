@@ -3,14 +3,13 @@ import Foundation
 nonisolated enum EditingDocumentError: Error, Equatable {
     case invalidDimensions
     case invalidBorderFraction
-    case invalidCornerRadius
-    case invalidHexColor
+    case invalidColorComponent
     case duplicatePhotoID
     case unknownSelectedPhoto
 }
 
 nonisolated struct EditingDocument: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     let schemaVersion: Int
     let id: DocumentID
@@ -72,28 +71,22 @@ nonisolated struct Photo: Codable, Equatable, Identifiable, Sendable {
     let sourceDimensions: PixelDimensions
 
     var border: Border
-    var photoCornerRadius: Double
     var showsMetadata: Bool
 
     init(
         id: PhotoID = PhotoID(),
         sourceDimensions: PixelDimensions,
         border: Border = .default,
-        photoCornerRadius: Double = 0.07,
         showsMetadata: Bool = true
     ) throws {
-        guard photoCornerRadius.isFinite, (0...0.5).contains(photoCornerRadius) else {
-            throw EditingDocumentError.invalidCornerRadius
-        }
         self.id = id
         self.sourceDimensions = sourceDimensions
         self.border = border
-        self.photoCornerRadius = photoCornerRadius
         self.showsMetadata = showsMetadata
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, sourceDimensions, border, photoCornerRadius, showsMetadata
+        case id, sourceDimensions, border, showsMetadata
     }
 
     init(from decoder: Decoder) throws {
@@ -102,7 +95,6 @@ nonisolated struct Photo: Codable, Equatable, Identifiable, Sendable {
             id: values.decode(PhotoID.self, forKey: .id),
             sourceDimensions: values.decode(PixelDimensions.self, forKey: .sourceDimensions),
             border: values.decode(Border.self, forKey: .border),
-            photoCornerRadius: values.decode(Double.self, forKey: .photoCornerRadius),
             showsMetadata: values.decode(Bool.self, forKey: .showsMetadata)
         )
     }
@@ -133,9 +125,9 @@ nonisolated struct Border: Codable, Equatable, Sendable {
     static let `default` = try! Border(fraction: 0.07, color: .white)
 
     let fraction: Double
-    let color: HexColor
+    let color: RGBAColor
 
-    init(fraction: Double, color: HexColor) throws {
+    init(fraction: Double, color: RGBAColor) throws {
         guard fraction.isFinite, (0...0.49).contains(fraction) else {
             throw EditingDocumentError.invalidBorderFraction
         }
@@ -147,34 +139,37 @@ nonisolated struct Border: Codable, Equatable, Sendable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         try self.init(
             fraction: values.decode(Double.self, forKey: .fraction),
-            color: values.decode(HexColor.self, forKey: .color)
+            color: values.decode(RGBAColor.self, forKey: .color)
         )
     }
 }
 
-nonisolated struct HexColor: RawRepresentable, Codable, Equatable, Sendable {
-    static let white = HexColor(rawValue: "#FFFFFF")!
+nonisolated struct RGBAColor: Codable, Equatable, Hashable, Sendable {
+    static let white = try! RGBAColor(red: 1, green: 1, blue: 1)
 
-    let rawValue: String
+    let red: Double
+    let green: Double
+    let blue: Double
+    let alpha: Double
 
-    init?(rawValue: String) {
-        let normalized = rawValue.uppercased()
-        guard normalized.range(of: "^#[0-9A-F]{6}$", options: .regularExpression) != nil else {
-            return nil
+    init(red: Double, green: Double, blue: Double, alpha: Double = 1) throws {
+        let components = [red, green, blue, alpha]
+        guard components.allSatisfy({ $0.isFinite && (0...1).contains($0) }) else {
+            throw EditingDocumentError.invalidColorComponent
         }
-        self.rawValue = normalized
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.alpha = alpha
     }
 
     init(from decoder: Decoder) throws {
-        let value = try decoder.singleValueContainer().decode(String.self)
-        guard let color = Self(rawValue: value) else {
-            throw EditingDocumentError.invalidHexColor
-        }
-        self = color
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(rawValue)
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            red: values.decode(Double.self, forKey: .red),
+            green: values.decode(Double.self, forKey: .green),
+            blue: values.decode(Double.self, forKey: .blue),
+            alpha: values.decode(Double.self, forKey: .alpha)
+        )
     }
 }

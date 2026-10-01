@@ -5,14 +5,33 @@ import UIKit
 struct EditorView: View {
     @Environment(\.openURL) private var openURL
     @State private var store = EditorStore()
-    @State private var borderPercentage = 7.0
-    @State private var showsCameraDetails = true
-    @State private var borderColor = Color.white
     @State private var selectedPickerItems: [PhotosPickerItem] = []
     @State private var isPhotoPickerPresented = false
     @State private var isAccessDeniedAlertPresented = false
 
-    private let borderColors: [Color] = [.white, .warmGray, .charcoal, .clay, .sage]
+    private let borderColors: [BorderColorOption] = [
+        BorderColorOption(id: "white", modelColor: .white, displayColor: .white),
+        BorderColorOption(
+            id: "warm-gray",
+            modelColor: try! RGBAColor(red: 222 / 255, green: 216 / 255, blue: 205 / 255),
+            displayColor: .warmGray
+        ),
+        BorderColorOption(
+            id: "charcoal",
+            modelColor: try! RGBAColor(red: 31 / 255, green: 33 / 255, blue: 31 / 255),
+            displayColor: .charcoal
+        ),
+        BorderColorOption(
+            id: "clay",
+            modelColor: try! RGBAColor(red: 214 / 255, green: 95 / 255, blue: 54 / 255),
+            displayColor: .clay
+        ),
+        BorderColorOption(
+            id: "sage",
+            modelColor: try! RGBAColor(red: 138 / 255, green: 154 / 255, blue: 142 / 255),
+            displayColor: .sage
+        )
+    ]
 
     var body: some View {
         NavigationStack {
@@ -90,37 +109,15 @@ struct EditorView: View {
     private var preview: some View {
         GeometryReader { geometry in
             let side = geometry.size.width
-            let inset = side * borderPercentage / 100
 
             ZStack {
-                borderColor
-                VStack(spacing: 12) {
-                    previewImage
-
-                    if showsCameraDetails, store.selectedResource != nil {
-                        cameraDetails
-                    }
-                }
-                .padding(inset)
+                Color.panelBackground
+                previewImage
             }
             .frame(width: side, height: side)
-            .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
             .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
         }
         .aspectRatio(1, contentMode: .fit)
-    }
-
-    private var cameraDetails: some View {
-        HStack(spacing: 8) {
-            Label("FUJIFILM X100VI", systemImage: "camera.aperture")
-                .font(.caption2.weight(.bold))
-            Spacer(minLength: 4)
-            Text("23 mm · ƒ/4 · 1/500 s · ISO 160")
-                .font(.caption2.monospacedDigit())
-        }
-        .foregroundStyle(Color.primaryText)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
     }
 
     private var photoStrip: some View {
@@ -130,7 +127,7 @@ struct EditorView: View {
                     LazyHStack(spacing: 10) {
                         ForEach(store.orderedResources) { resource in
                             Button {
-                                store.selectPhoto(resource.id)
+                                Task { await store.selectPhoto(resource.id) }
                             } label: {
                                 if let image = UIImage(contentsOfFile: resource.fileURL.path) {
                                     thumbnail(
@@ -192,25 +189,38 @@ struct EditorView: View {
                         .font(.subheadline.monospacedDigit())
                         .foregroundStyle(Color.secondaryText)
                 }
-                Slider(value: $borderPercentage, in: 2...16, step: 1)
+                Slider(
+                    value: borderPercentageBinding,
+                    in: 2...16,
+                    step: 1,
+                    onEditingChanged: { isEditing in
+                        guard !isEditing else { return }
+                        Task {
+                            await store.setBorderFraction(
+                                borderPercentage / 100,
+                                isContinuous: false
+                            )
+                        }
+                    }
+                )
 
                 HStack(spacing: 12) {
-                    ForEach(Array(borderColors.enumerated()), id: \.offset) { _, color in
+                    ForEach(borderColors) { option in
                         Button {
-                            borderColor = color
+                            Task { await store.setBorderColor(option.modelColor) }
                         } label: {
                             Circle()
-                                .fill(color)
+                                .fill(option.displayColor)
                                 .frame(width: 34, height: 34)
                                 .overlay {
                                     Circle().stroke(Color.black.opacity(0.12))
                                 }
                                 .overlay {
-                                    if borderColor == color {
+                                    if selectedBorderColor == option.modelColor {
                                         Image(systemName: "checkmark")
                                             .font(.caption.bold())
                                             .foregroundStyle(
-                                                color == .charcoal ? .white : .primaryText
+                                                option.displayColor == .charcoal ? .white : .primaryText
                                             )
                                     }
                                 }
@@ -223,7 +233,7 @@ struct EditorView: View {
 
             Divider()
 
-            Toggle(isOn: $showsCameraDetails) {
+            Toggle(isOn: metadataVisibilityBinding) {
                 Label("Camera details", systemImage: "camera.aperture")
                     .font(.headline)
             }
@@ -254,13 +264,14 @@ struct EditorView: View {
 
     @ViewBuilder
     private var previewImage: some View {
-        if let resource = store.selectedResource,
-           let image = UIImage(contentsOfFile: resource.fileURL.path) {
-            Image(uiImage: image)
+        if let image = store.renderedPreview {
+            Image(decorative: image, scale: 1)
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityLabel("Selected imported photo")
+        } else if store.selectedResource != nil {
+            ProgressView("Rendering photo…")
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "photo.on.rectangle.angled")
@@ -300,6 +311,32 @@ struct EditorView: View {
         )
     }
 
+    private var borderPercentage: Double {
+        (store.selectedPhoto?.border.fraction ?? 0.07) * 100
+    }
+
+    private var selectedBorderColor: RGBAColor {
+        store.selectedPhoto?.border.color ?? .white
+    }
+
+    private var borderPercentageBinding: Binding<Double> {
+        Binding(
+            get: { borderPercentage },
+            set: { value in
+                Task {
+                    await store.setBorderFraction(value / 100, isContinuous: true)
+                }
+            }
+        )
+    }
+
+    private var metadataVisibilityBinding: Binding<Bool> {
+        Binding(
+            get: { store.selectedPhoto?.showsMetadata ?? false },
+            set: { store.setMetadataVisible($0) }
+        )
+    }
+
     private func importPhotos(from items: [PhotosPickerItem]) async {
         var inputs: [PhotoImportInput] = []
         var pickerLoadFailed = false
@@ -325,6 +362,12 @@ struct EditorView: View {
         if pickerLoadFailed { store.reportImportFailure() }
         selectedPickerItems.removeAll()
     }
+}
+
+private struct BorderColorOption: Identifiable {
+    let id: String
+    let modelColor: RGBAColor
+    let displayColor: Color
 }
 
 private extension Color {
