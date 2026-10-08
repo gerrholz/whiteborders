@@ -7,8 +7,9 @@ nonisolated enum PhotoScope: Codable, Equatable, Sendable {
 }
 
 nonisolated enum EditingCommand: Codable, Equatable, Sendable {
-    case setBorderFraction(Double, scope: PhotoScope)
-    case setBorderColor(RGBAColor, scope: PhotoScope)
+    case setBorderFraction(Double)
+    case setBorderColor(RGBAColor)
+    case setAspectRatio(CanvasAspectRatio)
     case setMetadataVisible(Bool, scope: PhotoScope)
 }
 
@@ -23,24 +24,27 @@ nonisolated enum EditingReducer {
         command: EditingCommand
     ) throws -> EditingDocument {
         var result = document
-        let targetIDs = try photoIDs(in: result, scope: command.scope)
+        switch command {
+        case let .setBorderFraction(fraction):
+            result.border = try Border(fraction: fraction, color: result.border.color)
+            return result
+        case let .setBorderColor(color):
+            result.border = try Border(fraction: result.border.fraction, color: color)
+            return result
+        case let .setAspectRatio(aspectRatio):
+            result.aspectRatio = aspectRatio
+            return result
+        case .setMetadataVisible:
+            break
+        }
+
+        guard case let .setMetadataVisible(isVisible, scope) = command else {
+            return result
+        }
+        let targetIDs = try photoIDs(in: result, scope: scope)
 
         for index in result.photos.indices where targetIDs.contains(result.photos[index].id) {
-            let photo = result.photos[index]
-            switch command {
-            case let .setBorderFraction(fraction, _):
-                result.photos[index].border = try Border(
-                    fraction: fraction,
-                    color: photo.border.color
-                )
-            case let .setBorderColor(color, _):
-                result.photos[index].border = try Border(
-                    fraction: photo.border.fraction,
-                    color: color
-                )
-            case let .setMetadataVisible(isVisible, _):
-                result.photos[index].showsMetadata = isVisible
-            }
+            result.photos[index].showsMetadata = isVisible
         }
 
         return result
@@ -63,17 +67,6 @@ nonisolated enum EditingReducer {
             return document.selectedPhotoIDs
         case .allPhotos:
             return Set(document.photos.map(\.id))
-        }
-    }
-}
-
-private extension EditingCommand {
-    nonisolated var scope: PhotoScope {
-        switch self {
-        case let .setBorderFraction(_, scope),
-             let .setBorderColor(_, scope),
-             let .setMetadataVisible(_, scope):
-            return scope
         }
     }
 }

@@ -45,7 +45,9 @@ nonisolated struct EditingHistory: Equatable, Sendable {
             schemaVersion: document.schemaVersion,
             id: document.id,
             photos: document.photos,
-            selectedPhotoIDs: photoIDs
+            selectedPhotoIDs: photoIDs,
+            aspectRatio: document.aspectRatio,
+            border: document.border
         )
     }
 

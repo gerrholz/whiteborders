@@ -6,16 +6,25 @@ nonisolated struct PhotoLayout: Equatable, Sendable {
 
     static func centered(
         source: PixelDimensions,
-        borderFraction: Double
+        borderFraction: Double,
+        aspectRatio: CanvasAspectRatio = .square
     ) -> PhotoLayout {
         let sourceWidth = CGFloat(source.width)
         let sourceHeight = CGFloat(source.height)
-        let longestEdge = max(sourceWidth, sourceHeight)
-        let canvasSide = ceil(longestEdge / (1 - (2 * borderFraction)))
-        let canvasSize = CGSize(width: canvasSide, height: canvasSide)
+        let usableFraction = 1 - (2 * borderFraction)
+        let widthUnits = CGFloat(aspectRatio.widthUnits)
+        let heightUnits = CGFloat(aspectRatio.heightUnits)
+        let unitScale = ceil(max(
+            sourceWidth / (usableFraction * widthUnits),
+            sourceHeight / (usableFraction * heightUnits)
+        ))
+        let canvasSize = CGSize(
+            width: unitScale * widthUnits,
+            height: unitScale * heightUnits
+        )
         let photoFrame = CGRect(
-            x: (canvasSide - sourceWidth) / 2,
-            y: (canvasSide - sourceHeight) / 2,
+            x: (canvasSize.width - sourceWidth) / 2,
+            y: (canvasSize.height - sourceHeight) / 2,
             width: sourceWidth,
             height: sourceHeight
         )

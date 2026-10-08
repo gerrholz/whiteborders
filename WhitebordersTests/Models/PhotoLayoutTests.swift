@@ -61,6 +61,28 @@ final class PhotoLayoutTests: XCTestCase {
         XCTAssertLessThanOrEqual(frame.maxY, result.canvasSize.height - inset + accuracy)
     }
 
+    func testPortraitFourFiveCanvasUsesRequestedAspectRatio() throws {
+        let result = PhotoLayout.centered(
+            source: try PixelDimensions(width: 4_032, height: 3_024),
+            borderFraction: 0.07,
+            aspectRatio: .portraitFourFive
+        )
+
+        XCTAssertEqual(result.canvasSize.width / result.canvasSize.height, 4.0 / 5.0, accuracy: accuracy)
+        XCTAssertEqual(result.photoFrame.size, CGSize(width: 4_032, height: 3_024))
+    }
+
+    func testLandscapeSixteenNineCanvasUsesRequestedAspectRatio() throws {
+        let result = PhotoLayout.centered(
+            source: try PixelDimensions(width: 3_024, height: 4_032),
+            borderFraction: 0.07,
+            aspectRatio: .landscapeSixteenNine
+        )
+
+        XCTAssertEqual(result.canvasSize.width / result.canvasSize.height, 16.0 / 9.0, accuracy: accuracy)
+        XCTAssertEqual(result.photoFrame.size, CGSize(width: 3_024, height: 4_032))
+    }
+
     private func layout(width: Int, height: Int) throws -> PhotoLayout {
         PhotoLayout.centered(
             source: try PixelDimensions(width: width, height: height),

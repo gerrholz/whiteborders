@@ -40,7 +40,13 @@ final class EditorStore {
         self.exporter = exporter
         self.librarySaver = librarySaver
         authorizationStatus = authorization.currentStatus()
-        history = EditingHistory(document: try! EditingDocument(photos: []))
+        history = EditingHistory(
+            document: try! EditingDocument(
+                photos: [],
+                aspectRatio: .square,
+                border: .default
+            )
+        )
     }
 
     func requestPhotoAccess() async {
@@ -116,7 +122,7 @@ final class EditorStore {
         guard selectedPhotoID != nil else { return }
         do {
             try history.apply(
-                .setBorderFraction(fraction, scope: .selectedPhotos),
+                .setBorderFraction(fraction),
                 coalescingKey: isContinuous ? "border-fraction" : nil
             )
             if !isContinuous { history.endCoalescing() }
@@ -129,10 +135,20 @@ final class EditorStore {
     func setBorderColor(_ color: RGBAColor) async {
         guard selectedPhotoID != nil else { return }
         do {
-            try history.apply(.setBorderColor(color, scope: .selectedPhotos))
+            try history.apply(.setBorderColor(color))
             await renderSelectedPhoto()
         } catch {
             importErrorMessage = "The border color could not be applied."
+        }
+    }
+
+    func setAspectRatio(_ aspectRatio: CanvasAspectRatio) async {
+        guard selectedPhotoID != nil else { return }
+        do {
+            try history.apply(.setAspectRatio(aspectRatio))
+            await renderSelectedPhoto()
+        } catch {
+            importErrorMessage = "The aspect ratio could not be applied."
         }
     }
 
@@ -162,7 +178,12 @@ final class EditorStore {
         defer { isExporting = false }
 
         do {
-            try await export(photo: photo, resource: resource)
+            try await export(
+                photo: photo,
+                resource: resource,
+                aspectRatio: document.aspectRatio,
+                border: document.border
+            )
             exportNotice = .saved(count: 1)
         } catch {
             exportNotice = .failed("The photo could not be saved. Please try again.")
@@ -176,6 +197,8 @@ final class EditorStore {
             return (photo, resource)
         }
         guard !exports.isEmpty else { return }
+        let aspectRatio = document.aspectRatio
+        let border = document.border
 
         isExporting = true
         exportNotice = nil
@@ -184,7 +207,12 @@ final class EditorStore {
         var savedCount = 0
         do {
             for (photo, resource) in exports {
-                try await export(photo: photo, resource: resource)
+                try await export(
+                    photo: photo,
+                    resource: resource,
+                    aspectRatio: aspectRatio,
+                    border: border
+                )
                 savedCount += 1
             }
             exportNotice = .saved(count: savedCount)
@@ -199,8 +227,18 @@ final class EditorStore {
         exportNotice = nil
     }
 
-    private func export(photo: Photo, resource: PhotoResource) async throws {
-        let renderedImage = try await renderer.render(photo: photo, resource: resource)
+    private func export(
+        photo: Photo,
+        resource: PhotoResource,
+        aspectRatio: CanvasAspectRatio,
+        border: Border
+    ) async throws {
+        let renderedImage = try await renderer.render(
+            photo: photo,
+            resource: resource,
+            aspectRatio: aspectRatio,
+            border: border
+        )
         let jpegData = try exporter.jpegData(from: renderedImage, quality: 0.95)
         try await librarySaver.saveJPEG(jpegData)
     }
@@ -220,7 +258,12 @@ final class EditorStore {
         }
 
         do {
-            let output = try await renderer.render(photo: photo, resource: resource)
+            let output = try await renderer.render(
+                photo: photo,
+                resource: resource,
+                aspectRatio: document.aspectRatio,
+                border: document.border
+            )
             guard selectedPhoto == photo else { return }
             renderedPreview = output
         } catch {

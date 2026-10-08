@@ -5,8 +5,9 @@ final class EditingDocumentTests: XCTestCase {
     func testDefaultsDescribeWhiteBorderComposition() throws {
         let document = try makeDocument()
 
-        XCTAssertEqual(document.schemaVersion, 3)
-        XCTAssertEqual(document.photos[0].border, try Border(fraction: 0.07, color: .white))
+        XCTAssertEqual(document.schemaVersion, 4)
+        XCTAssertEqual(document.border, try Border(fraction: 0.07, color: .white))
+        XCTAssertEqual(document.aspectRatio, .square)
     }
 
     func testEncodedDocumentDoesNotStoreDerivedCanvasDimensions() throws {
@@ -30,7 +31,9 @@ final class EditingDocumentTests: XCTestCase {
         XCTAssertThrowsError(
             try EditingDocument(
                 photos: [photo],
-                selectedPhotoIDs: [PhotoID(rawValue: "missing")]
+                selectedPhotoIDs: [PhotoID(rawValue: "missing")],
+                aspectRatio: .square,
+                border: .default
             )
         ) { error in
             XCTAssertEqual(error as? EditingDocumentError, .unknownSelectedPhoto)
@@ -58,6 +61,8 @@ func makeDocument(photoCount: Int = 1) throws -> EditingDocument {
     return try EditingDocument(
         id: DocumentID(rawValue: "document-1"),
         photos: photos,
-        selectedPhotoIDs: [photos[0].id]
+        selectedPhotoIDs: [photos[0].id],
+        aspectRatio: .square,
+        border: .default
     )
 }

@@ -9,7 +9,12 @@ nonisolated enum PhotoRenderError: Error, Equatable {
 }
 
 nonisolated protocol PhotoRendering: Sendable {
-    func render(photo: Photo, resource: PhotoResource) async throws -> CGImage
+    func render(
+        photo: Photo,
+        resource: PhotoResource,
+        aspectRatio: CanvasAspectRatio,
+        border: Border
+    ) async throws -> CGImage
 }
 
 actor PhotoRenderer: PhotoRendering {
@@ -18,7 +23,12 @@ actor PhotoRenderer: PhotoRendering {
         .useSoftwareRenderer: true
     ])
 
-    func render(photo: Photo, resource: PhotoResource) async throws -> CGImage {
+    func render(
+        photo: Photo,
+        resource: PhotoResource,
+        aspectRatio: CanvasAspectRatio,
+        border: Border
+    ) async throws -> CGImage {
         guard let orientedImage = CIImage(
             contentsOf: resource.fileURL,
             options: [.applyOrientationProperty: true]
@@ -31,7 +41,8 @@ actor PhotoRenderer: PhotoRendering {
 
         let layout = PhotoLayout.centered(
             source: photo.sourceDimensions,
-            borderFraction: photo.border.fraction
+            borderFraction: border.fraction,
+            aspectRatio: aspectRatio
         )
         let width = Int(layout.canvasSize.width)
         let height = Int(layout.canvasSize.height)
@@ -47,7 +58,7 @@ actor PhotoRenderer: PhotoRendering {
             throw PhotoRenderError.couldNotCreateBitmap
         }
 
-        let borderColor = photo.border.color
+        let borderColor = border.color
         context.setFillColor(
             CGColor(
                 red: CGFloat(borderColor.red),

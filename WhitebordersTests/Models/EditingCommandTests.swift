@@ -2,16 +2,16 @@ import XCTest
 @testable import Whiteborders
 
 final class EditingCommandTests: XCTestCase {
-    func testSelectedScopeOnlyChangesSelectedPhotos() throws {
+    func testBorderFractionChangesTheDocument() throws {
         let document = try makeDocument(photoCount: 2)
         let changed = try EditingReducer.reduce(
             document,
-            command: .setBorderFraction(0.12, scope: .selectedPhotos)
+            command: .setBorderFraction(0.12)
         )
 
-        XCTAssertEqual(changed.photos[0].border.fraction, 0.12)
-        XCTAssertEqual(changed.photos[1].border.fraction, 0.07)
-        XCTAssertEqual(document.photos[0].border.fraction, 0.07)
+        XCTAssertEqual(changed.border.fraction, 0.12)
+        XCTAssertEqual(changed.border.color, .white)
+        XCTAssertEqual(changed.photos, document.photos)
     }
 
     func testAllScopeChangesEveryPhoto() throws {
@@ -24,6 +24,17 @@ final class EditingCommandTests: XCTestCase {
         XCTAssertTrue(changed.photos.allSatisfy { !$0.showsMetadata })
     }
 
+    func testAspectRatioChangesTheDocument() throws {
+        let document = try makeDocument(photoCount: 2)
+        let changed = try EditingReducer.reduce(
+            document,
+            command: .setAspectRatio(.portraitFourFive)
+        )
+
+        XCTAssertEqual(changed.aspectRatio, .portraitFourFive)
+        XCTAssertEqual(changed.photos, document.photos)
+    }
+
     func testUnknownPhotoFailsWithoutChangingDocument() throws {
         let document = try makeDocument()
         let missingID = PhotoID(rawValue: "missing")
@@ -31,7 +42,7 @@ final class EditingCommandTests: XCTestCase {
         XCTAssertThrowsError(
             try EditingReducer.reduce(
                 document,
-                command: .setBorderFraction(0.1, scope: .photo(missingID))
+                command: .setMetadataVisible(false, scope: .photo(missingID))
             )
         ) { error in
             XCTAssertEqual(error as? EditingCommandError, .photoNotFound(missingID))
@@ -40,8 +51,7 @@ final class EditingCommandTests: XCTestCase {
 
     func testCommandIsSerializable() throws {
         let command = EditingCommand.setBorderColor(
-            try RGBAColor(red: 0.67, green: 0.8, blue: 0.94),
-            scope: .allPhotos
+            try RGBAColor(red: 0.67, green: 0.8, blue: 0.94)
         )
         let encoded = try JSONEncoder().encode(command)
         let decoded = try JSONDecoder().decode(EditingCommand.self, from: encoded)

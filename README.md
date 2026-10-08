@@ -1,6 +1,6 @@
 # Whiteborders
 
-Whiteborders is a private, iPhone-first photo-framing app written in Swift and SwiftUI. The initial workflow centers a complete photo inside a square canvas with a configurable white border. Photo processing will remain on the device.
+Whiteborders is a private, iPhone-first photo-framing app written in Swift and SwiftUI. The initial workflow centers a complete photo inside a selectable fixed-aspect-ratio canvas with a configurable white border. Photo processing will remain on the device.
 
 ## Requirements
 

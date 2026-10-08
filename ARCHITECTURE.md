@@ -31,7 +31,7 @@ Photos and share-sheet delivery
 
 ## Current invariant
 
-The complete source photo remains at its native pixel dimensions and is centered on both axes. A square canvas is derived from the source photo's longest edge and the requested border fraction, rounding the canvas side upward to a whole pixel. Canvas dimensions are calculated layout output rather than stored document state. There is no crop, zoom, focal point, rotation, or placement state. The default border is uniform 7% white.
+The complete source photo remains at its native pixel dimensions and is centered on both axes. A canvas with the selected fixed aspect ratio is derived from the source photo and requested border fraction, rounding its common ratio scale upward to a whole pixel. Canvas dimensions are calculated layout output rather than stored document state. There is no crop, zoom, focal point, rotation, or placement state. The default aspect ratio is 1:1 and the default border is uniform 7% white.
 
 ## Privacy
 

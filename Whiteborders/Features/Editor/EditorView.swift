@@ -112,7 +112,7 @@ struct EditorView: View {
                     .foregroundStyle(Color.primaryText)
             }
             Spacer()
-            Text("1:1")
+            Text(store.selectedResource == nil ? "—" : store.document.aspectRatio.label)
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle(Color.secondaryText)
         }
@@ -120,17 +120,15 @@ struct EditorView: View {
     }
 
     private var preview: some View {
-        GeometryReader { geometry in
-            let side = geometry.size.width
-
-            ZStack {
-                Color.panelBackground
-                previewImage
-            }
-            .frame(width: side, height: side)
-            .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
+        ZStack {
+            Color.panelBackground
+            previewImage
         }
-        .aspectRatio(1, contentMode: .fit)
+        .aspectRatio(
+            CGFloat(store.document.aspectRatio.value),
+            contentMode: .fit
+        )
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 12)
     }
 
     private var photoStrip: some View {
@@ -193,6 +191,20 @@ struct EditorView: View {
 
     private var controls: some View {
         VStack(spacing: 20) {
+            HStack {
+                Label("Aspect ratio", systemImage: "aspectratio")
+                    .font(.headline)
+                Spacer()
+                Picker("Aspect ratio", selection: aspectRatioBinding) {
+                    ForEach(CanvasAspectRatio.allCases) { aspectRatio in
+                        Text(aspectRatio.label).tag(aspectRatio)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Divider()
+
             VStack(spacing: 10) {
                 HStack {
                     Text("Border")
@@ -327,11 +339,11 @@ struct EditorView: View {
     }
 
     private var borderPercentage: Double {
-        (store.selectedPhoto?.border.fraction ?? 0.07) * 100
+        store.document.border.fraction * 100
     }
 
     private var selectedBorderColor: RGBAColor {
-        store.selectedPhoto?.border.color ?? .white
+        store.document.border.color
     }
 
     private var borderPercentageBinding: Binding<Double> {
@@ -341,6 +353,15 @@ struct EditorView: View {
                 Task {
                     await store.setBorderFraction(value / 100, isContinuous: true)
                 }
+            }
+        )
+    }
+
+    private var aspectRatioBinding: Binding<CanvasAspectRatio> {
+        Binding(
+            get: { store.document.aspectRatio },
+            set: { aspectRatio in
+                Task { await store.setAspectRatio(aspectRatio) }
             }
         )
     }

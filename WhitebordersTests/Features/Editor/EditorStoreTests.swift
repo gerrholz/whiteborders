@@ -110,12 +110,35 @@ final class EditorStoreTests: XCTestCase {
         await store.importPhotos([PhotoImportInput(data: Data([1]))])
 
         await store.setBorderFraction(0.12, isContinuous: false)
-        XCTAssertEqual(store.selectedPhoto?.border.fraction, 0.12)
+        XCTAssertEqual(store.document.border.fraction, 0.12)
         XCTAssertTrue(store.canUndo)
 
         await store.undo()
-        XCTAssertEqual(store.selectedPhoto?.border.fraction, 0.07)
+        XCTAssertEqual(store.document.border.fraction, 0.07)
         XCTAssertTrue(store.canRedo)
+    }
+
+    func testAspectRatioChangesUseHistoryAndCanBeUndone() async throws {
+        let resource = PhotoResource(
+            id: PhotoID(rawValue: "ratio-photo"),
+            fileURL: URL(filePath: "/tmp/ratio-photo.jpg"),
+            dimensions: try PixelDimensions(width: 100, height: 80)
+        )
+        let store = EditorStore(
+            authorization: FakePhotoLibraryAuthorization(
+                current: .authorized,
+                requested: .authorized
+            ),
+            importer: FakePhotoImporter(result: .success(resource)),
+            renderer: FakePhotoRenderer(image: makeTestImage())
+        )
+        await store.importPhotos([PhotoImportInput(data: Data([1]))])
+
+        await store.setAspectRatio(.portraitFourFive)
+        XCTAssertEqual(store.document.aspectRatio, .portraitFourFive)
+
+        await store.undo()
+        XCTAssertEqual(store.document.aspectRatio, .square)
     }
 
     func testExportRendersEncodesAndSavesSelectedPhoto() async throws {
@@ -192,7 +215,12 @@ private actor FakePhotoRenderer: PhotoRendering {
         self.image = image
     }
 
-    func render(photo: Photo, resource: PhotoResource) async throws -> CGImage {
+    func render(
+        photo: Photo,
+        resource: PhotoResource,
+        aspectRatio: CanvasAspectRatio,
+        border: Border
+    ) async throws -> CGImage {
         image
     }
 }

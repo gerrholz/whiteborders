@@ -9,19 +9,23 @@ nonisolated enum EditingDocumentError: Error, Equatable {
 }
 
 nonisolated struct EditingDocument: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 3
+    static let currentSchemaVersion = 4
 
     let schemaVersion: Int
     let id: DocumentID
 
     var photos: [Photo]
     var selectedPhotoIDs: Set<PhotoID>
+    var aspectRatio: CanvasAspectRatio
+    var border: Border
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,
         id: DocumentID = DocumentID(),
         photos: [Photo],
-        selectedPhotoIDs: Set<PhotoID> = []
+        selectedPhotoIDs: Set<PhotoID> = [],
+        aspectRatio: CanvasAspectRatio,
+        border: Border
     ) throws {
         let photoIDs = photos.map(\.id)
         guard Set(photoIDs).count == photoIDs.count else {
@@ -35,10 +39,12 @@ nonisolated struct EditingDocument: Codable, Equatable, Sendable {
         self.id = id
         self.photos = photos
         self.selectedPhotoIDs = selectedPhotoIDs
+        self.aspectRatio = aspectRatio
+        self.border = border
     }
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, id, photos, selectedPhotoIDs
+        case schemaVersion, id, photos, selectedPhotoIDs, aspectRatio, border
     }
 
     init(from decoder: Decoder) throws {
@@ -47,7 +53,9 @@ nonisolated struct EditingDocument: Codable, Equatable, Sendable {
             schemaVersion: values.decode(Int.self, forKey: .schemaVersion),
             id: values.decode(DocumentID.self, forKey: .id),
             photos: values.decode([Photo].self, forKey: .photos),
-            selectedPhotoIDs: values.decode(Set<PhotoID>.self, forKey: .selectedPhotoIDs)
+            selectedPhotoIDs: values.decode(Set<PhotoID>.self, forKey: .selectedPhotoIDs),
+            aspectRatio: values.decode(CanvasAspectRatio.self, forKey: .aspectRatio),
+            border: values.decode(Border.self, forKey: .border)
         )
     }
 }
@@ -70,23 +78,20 @@ nonisolated struct Photo: Codable, Equatable, Identifiable, Sendable {
     let id: PhotoID
     let sourceDimensions: PixelDimensions
 
-    var border: Border
     var showsMetadata: Bool
 
     init(
         id: PhotoID = PhotoID(),
         sourceDimensions: PixelDimensions,
-        border: Border = .default,
         showsMetadata: Bool = true
     ) throws {
         self.id = id
         self.sourceDimensions = sourceDimensions
-        self.border = border
         self.showsMetadata = showsMetadata
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, sourceDimensions, border, showsMetadata
+        case id, sourceDimensions, showsMetadata
     }
 
     init(from decoder: Decoder) throws {
@@ -94,10 +99,42 @@ nonisolated struct Photo: Codable, Equatable, Identifiable, Sendable {
         try self.init(
             id: values.decode(PhotoID.self, forKey: .id),
             sourceDimensions: values.decode(PixelDimensions.self, forKey: .sourceDimensions),
-            border: values.decode(Border.self, forKey: .border),
             showsMetadata: values.decode(Bool.self, forKey: .showsMetadata)
         )
     }
+}
+
+nonisolated enum CanvasAspectRatio: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+    case square
+    case portraitFourFive
+    case landscapeFiveFour
+    case portraitNineSixteen
+    case landscapeSixteenNine
+
+    var id: Self { self }
+
+    var widthUnits: Int {
+        switch self {
+        case .square: 1
+        case .portraitFourFive: 4
+        case .landscapeFiveFour: 5
+        case .portraitNineSixteen: 9
+        case .landscapeSixteenNine: 16
+        }
+    }
+
+    var heightUnits: Int {
+        switch self {
+        case .square: 1
+        case .portraitFourFive: 5
+        case .landscapeFiveFour: 4
+        case .portraitNineSixteen: 16
+        case .landscapeSixteenNine: 9
+        }
+    }
+
+    var label: String { "\(widthUnits):\(heightUnits)" }
+    var value: Double { Double(widthUnits) / Double(heightUnits) }
 }
 
 nonisolated struct PixelDimensions: Codable, Equatable, Sendable {

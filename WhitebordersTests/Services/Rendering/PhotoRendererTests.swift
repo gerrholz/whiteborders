@@ -9,8 +9,7 @@ final class PhotoRendererTests: XCTestCase {
         let originalData = try Data(contentsOf: sourceURL)
         let photo = try Photo(
             id: PhotoID(rawValue: "landscape"),
-            sourceDimensions: PixelDimensions(width: 4, height: 3),
-            border: Border(fraction: 0.1, color: .white)
+            sourceDimensions: PixelDimensions(width: 4, height: 3)
         )
         let resource = PhotoResource(
             id: photo.id,
@@ -18,7 +17,12 @@ final class PhotoRendererTests: XCTestCase {
             dimensions: photo.sourceDimensions
         )
 
-        let output = try await PhotoRenderer().render(photo: photo, resource: resource)
+        let output = try await PhotoRenderer().render(
+            photo: photo,
+            resource: resource,
+            aspectRatio: .square,
+            border: try Border(fraction: 0.1, color: .white)
+        )
 
         XCTAssertEqual(output.width, 5)
         XCTAssertEqual(output.height, 5)
@@ -29,8 +33,7 @@ final class PhotoRendererTests: XCTestCase {
         let sourceURL = try fixtureURL(name: "generated-landscape", extension: "png")
         let red = try RGBAColor(red: 1, green: 0, blue: 0)
         let photo = try Photo(
-            sourceDimensions: PixelDimensions(width: 4, height: 3),
-            border: Border(fraction: 0.1, color: red)
+            sourceDimensions: PixelDimensions(width: 4, height: 3)
         )
         let resource = PhotoResource(
             id: photo.id,
@@ -38,7 +41,12 @@ final class PhotoRendererTests: XCTestCase {
             dimensions: photo.sourceDimensions
         )
 
-        let output = try await PhotoRenderer().render(photo: photo, resource: resource)
+        let output = try await PhotoRenderer().render(
+            photo: photo,
+            resource: resource,
+            aspectRatio: .square,
+            border: try Border(fraction: 0.1, color: red)
+        )
         let pixel = try rgbaPixel(in: output, x: 0, y: 0)
 
         XCTAssertGreaterThanOrEqual(pixel.red, 250)
@@ -56,7 +64,12 @@ final class PhotoRendererTests: XCTestCase {
         )
 
         do {
-            _ = try await PhotoRenderer().render(photo: photo, resource: resource)
+            _ = try await PhotoRenderer().render(
+                photo: photo,
+                resource: resource,
+                aspectRatio: .square,
+                border: .default
+            )
             XCTFail("Expected rendering to fail")
         } catch {
             XCTAssertEqual(error as? PhotoRenderError, .unreadableImage)
